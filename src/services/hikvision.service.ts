@@ -50,13 +50,20 @@ class HikvisionService {
      */
     async syncMember(member: MemberData): Promise<void> {
         try {
+            console.log(`\n========== SYNCING MEMBER ${member.id} ==========`);
+            console.log(`Member Name: ${member.name}`);
+            console.log(`Member Data:`, JSON.stringify(member, null, 2));
+
             // Check if member should be on device
             const shouldBeOnDevice = this.shouldMemberBeOnDevice(member);
+            console.log(`Should be on device: ${shouldBeOnDevice}`);
 
             if (!shouldBeOnDevice) {
+                console.log(`❌ Member ${member.id} should NOT be on device - removing...`);
                 // Remove from device if present
                 await this.deleteMember(member.id.toString());
                 logger.info(`Member ${member.id} removed from device (expired/blocked/inactive)`);
+                console.log(`✅ Member ${member.id} removed successfully`);
                 return;
             }
 
@@ -65,6 +72,8 @@ class HikvisionService {
             const endTime = member.validity
                 ? new Date(member.validity).toISOString().split('T')[0] + 'T23:59:59'
                 : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T23:59:59';
+
+            console.log(`Validity Period: ${beginTime} to ${endTime}`);
 
             const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <UserInfo>
@@ -85,13 +94,32 @@ class HikvisionService {
   </RightPlan>
 </UserInfo>`;
 
-            await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`, {
+            console.log(`\n📤 Sending XML to device:`);
+            console.log(xml);
+            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`);
+
+            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/xml' },
                 body: xml,
             });
-            logger.info(`Member ${member.id} synced to device`, { name: member.name, endTime });
+
+            console.log(`\n📥 Response Status: ${response.status} ${response.statusText}`);
+            const responseText = await response.text();
+            console.log(`📥 Response Body:`, responseText);
+
+            if (response.status === 200) {
+                console.log(`✅ Member ${member.id} (${member.name}) synced successfully!`);
+                logger.info(`Member ${member.id} synced to device`, { name: member.name, endTime });
+            } else {
+                console.log(`⚠️ Unexpected status code: ${response.status}`);
+            }
+
+            console.log(`========== END SYNC ${member.id} ==========\n`);
         } catch (error: any) {
+            console.error(`\n❌ ERROR syncing member ${member.id}:`);
+            console.error(`Error message: ${error.message}`);
+            console.error(`Error stack:`, error.stack);
             logger.error(`Failed to sync member ${member.id}`, { error: error.message });
             throw error;
         }
