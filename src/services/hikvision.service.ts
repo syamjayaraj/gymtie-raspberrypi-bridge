@@ -75,33 +75,37 @@ class HikvisionService {
 
             console.log(`Validity Period: ${beginTime} to ${endTime}`);
 
-            const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<UserInfo>
-  <employeeNo>${member.id}</employeeNo>
-  <name>${this.escapeXml(member.name)}</name>
-  <userType>normal</userType>
-  <departmentNo>1</departmentNo>
-  <Valid>
-    <enable>true</enable>
-    <beginTime>${beginTime}</beginTime>
-    <endTime>${endTime}</endTime>
-    <timeType>local</timeType>
-  </Valid>
-  <doorRight>1</doorRight>
-  <RightPlan>
-    <doorNo>1</doorNo>
-    <planTemplateNo>1</planTemplateNo>
-  </RightPlan>
-</UserInfo>`;
+            // Create JSON payload (matching Strapi format)
+            const payload = {
+                UserInfo: {
+                    employeeNo: String(member.id),
+                    name: member.name,
+                    userType: 'normal',
+                    departmentNo: '1',
+                    Valid: {
+                        enable: true,
+                        beginTime: beginTime,
+                        endTime: endTime,
+                        timeType: 'local'
+                    },
+                    doorRight: '1',
+                    RightPlan: [
+                        {
+                            doorNo: 1,
+                            planTemplateNo: '1'
+                        }
+                    ]
+                }
+            };
 
-            console.log(`\n📤 Sending XML to device:`);
-            console.log(xml);
-            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record`);
+            console.log(`\n📤 Sending JSON to device:`);
+            console.log(JSON.stringify(payload, null, 2));
+            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`);
 
-            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record`, {
+            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/xml' },
-                body: xml,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
             });
 
             console.log(`\n📥 Response Status: ${response.status} ${response.statusText}`);
@@ -265,18 +269,6 @@ class HikvisionService {
         }
 
         return true;
-    }
-
-    /**
-     * Escape XML special characters
-     */
-    private escapeXml(unsafe: string): string {
-        return unsafe
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&apos;');
     }
 }
 
