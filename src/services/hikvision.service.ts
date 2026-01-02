@@ -1,6 +1,6 @@
-import axios, { AxiosInstance } from 'axios';
 import { parseString } from 'xml2js';
 import { promisify } from 'util';
+import DigestClient from 'digest-fetch';
 import config from '../utils/config';
 import logger from '../utils/logger';
 
@@ -21,21 +21,13 @@ interface AttendanceLog {
 }
 
 class HikvisionService {
-    private client: AxiosInstance;
     private baseUrl: string;
+    private client: DigestClient;
 
     constructor() {
         this.baseUrl = `http://${config.hikvision.ip}:${config.hikvision.port}`;
-        this.client = axios.create({
-            baseURL: this.baseUrl,
-            auth: {
-                username: config.hikvision.username,
-                password: config.hikvision.password,
-            },
-            headers: {
-                'Content-Type': 'application/xml',
-            },
-            timeout: 10000,
+        this.client = new DigestClient(config.hikvision.username, config.hikvision.password, {
+            algorithm: 'MD5',
         });
     }
 
@@ -44,7 +36,7 @@ class HikvisionService {
      */
     async testConnection(): Promise<boolean> {
         try {
-            const response = await this.client.get('/ISAPI/System/deviceInfo');
+            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/System/deviceInfo`);
             logger.info('Hikvision device connection successful');
             return response.status === 200;
         } catch (error: any) {
@@ -89,7 +81,11 @@ class HikvisionService {
   </doorRight>
 </UserInfo>`;
 
-            await this.client.put('/ISAPI/AccessControl/UserInfo/Record?format=json', xml);
+            await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/xml' },
+                body: xml,
+            });
             logger.info(`Member ${member.id} synced to device`, { name: member.name, endTime });
         } catch (error: any) {
             logger.error(`Failed to sync member ${member.id}`, { error: error.message });
@@ -109,7 +105,11 @@ class HikvisionService {
   </EmployeeNoList>
 </UserInfoDelCond>`;
 
-            await this.client.put('/ISAPI/AccessControl/UserInfo/Delete?format=json', xml);
+            await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Delete?format=json`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/xml' },
+                body: xml,
+            });
             logger.info(`Member ${employeeNo} deleted from device`);
         } catch (error: any) {
             // Ignore 404 errors (member not on device)
@@ -135,10 +135,15 @@ class HikvisionService {
   <endTime>${endTime.toISOString()}</endTime>
 </AcsEventCond>`;
 
-            const response = await this.client.post('/ISAPI/AccessControl/AcsEvent?format=json', xml);
+            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/AcsEvent?format=json`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/xml' },
+                body: xml,
+            });
 
             // Parse XML response
-            const result: any = await parseXML(response.data);
+            const responseText = await response.text();
+            const result: any = await parseXML(responseText);
             const events = result?.AcsEvent?.InfoList?.[0]?.Info || [];
 
             const logs: AttendanceLog[] = events.map((event: any) => ({
@@ -173,7 +178,11 @@ class HikvisionService {
   </HttpHostNotification>
 </HttpHostNotificationList>`;
 
-            await this.client.put('/ISAPI/Event/notification/httpHosts', httpHostXml);
+            await this.client.fetch(`${this.baseUrl}/ISAPI/Event/notification/httpHosts`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/xml' },
+                body: httpHostXml,
+            });
 
             // Enable arming mode
             const armingXml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -193,7 +202,11 @@ class HikvisionService {
   </EventNotificationArmingList>
 </EventNotificationArming>`;
 
-            await this.client.put('/ISAPI/Event/notification/arming', armingXml);
+            await this.client.fetch(`${this.baseUrl}/ISAPI/Event/notification/arming`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/xml' },
+                body: armingXml,
+            });
 
             logger.info('Event listeners configured on device', { callbackUrl });
         } catch (error: any) {
