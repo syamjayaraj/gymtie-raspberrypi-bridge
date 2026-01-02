@@ -225,6 +225,7 @@ class HikvisionService {
 
         if (member.validity) {
             const validityDate = new Date(member.validity);
+            validityDate.setHours(23, 59, 59, 999); // End of validity day
             const now = new Date();
             if (validityDate < now) {
                 return false;
