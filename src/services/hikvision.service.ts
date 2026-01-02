@@ -96,10 +96,10 @@ class HikvisionService {
 
             console.log(`\n📤 Sending XML to device:`);
             console.log(xml);
-            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`);
+            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record`);
 
-            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`, {
-                method: 'PUT',
+            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/xml' },
                 body: xml,
             });
