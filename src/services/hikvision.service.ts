@@ -71,14 +71,18 @@ class HikvisionService {
   <employeeNo>${member.id}</employeeNo>
   <name>${this.escapeXml(member.name)}</name>
   <userType>normal</userType>
+  <departmentNo>1</departmentNo>
   <Valid>
     <enable>true</enable>
     <beginTime>${beginTime}</beginTime>
     <endTime>${endTime}</endTime>
+    <timeType>local</timeType>
   </Valid>
-  <doorRight>
+  <doorRight>1</doorRight>
+  <RightPlan>
     <doorNo>1</doorNo>
-  </doorRight>
+    <planTemplateNo>1</planTemplateNo>
+  </RightPlan>
 </UserInfo>`;
 
             await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`, {
