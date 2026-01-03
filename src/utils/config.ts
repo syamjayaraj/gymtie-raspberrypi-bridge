@@ -65,8 +65,8 @@ const config: Config = {
         password: getEnvVar('HIKVISION_PASSWORD'),
     },
     sync: {
-        memberInterval: parseInt(getEnvVar('MEMBER_SYNC_INTERVAL', '15'), 10),
-        attendanceInterval: parseInt(getEnvVar('ATTENDANCE_PULL_INTERVAL', '5'), 10),
+        memberInterval: parseInt(getEnvVar('MEMBER_SYNC_INTERVAL', '1'), 10),
+        attendanceInterval: parseInt(getEnvVar('ATTENDANCE_PULL_INTERVAL', '1'), 10),
         queueRetryInterval: parseInt(getEnvVar('QUEUE_RETRY_INTERVAL', '2'), 10),
     },
     logging: {

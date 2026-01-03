@@ -54,26 +54,55 @@ class HikvisionService {
             console.log(`Member Name: ${member.name}`);
             console.log(`Member Data:`, JSON.stringify(member, null, 2));
 
-            // Check if member should be on device
-            const shouldBeOnDevice = this.shouldMemberBeOnDevice(member);
-            console.log(`Should be on device: ${shouldBeOnDevice}`);
+            // Check if member should have access
+            const hasAccess = this.shouldMemberBeOnDevice(member);
+            console.log(`Has access: ${hasAccess}`);
 
-            if (!shouldBeOnDevice) {
-                console.log(`❌ Member ${member.id} should NOT be on device - removing...`);
-                // Remove from device if present
-                await this.deleteMember(member.id.toString());
-                logger.info(`Member ${member.id} removed from device (expired/blocked/inactive)`);
-                console.log(`✅ Member ${member.id} removed successfully`);
+            // If member doesn't have access, delete them from device
+            if (!hasAccess) {
+                console.log(`❌ Member ${member.id} expired/blocked - deleting from device...`);
+                try {
+                    await this.deleteMember(member.id.toString());
+                    console.log(`✅ Member ${member.id} (${member.name}) deleted successfully`);
+                    logger.info(`Member ${member.id} deleted from device (expired/blocked/inactive)`);
+                } catch (error: any) {
+                    if (error.response?.status === 404) {
+                        console.log(`ℹ️ Member ${member.id} not on device`);
+                    } else {
+                        console.error(`❌ Failed to delete member ${member.id}:`, error.message);
+                    }
+                }
+                console.log(`========== END SYNC ${member.id} ==========\n`);
                 return;
             }
+            // Calculate validity dates (matching Strapi logic exactly)
+            let joiningDate = new Date().toISOString(); // Default to now if no joining date
+            let endDate: string;
 
-            // Calculate validity dates
-            const beginTime = new Date().toISOString().split('T')[0] + 'T00:00:00';
-            const endTime = member.validity
-                ? new Date(member.validity).toISOString().split('T')[0] + 'T23:59:59'
-                : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T23:59:59';
+            if (hasAccess && member.validity) {
+                const validityDate = new Date(member.validity);
+                validityDate.setHours(23, 59, 59, 999);
+                endDate = validityDate.toISOString();
+            } else if (hasAccess) {
+                endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+            } else {
+                // Expired/blocked - set to yesterday to block access
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                yesterday.setHours(23, 59, 59, 999);
+                endDate = yesterday.toISOString();
+            }
+
+            // Ensure beginTime is not after endTime (prevents Hikvision error)
+            if (new Date(joiningDate) > new Date(endDate)) {
+                joiningDate = new Date(new Date(endDate).getTime() - 24 * 60 * 60 * 1000).toISOString();
+            }
+
+            const beginTime = this.formatDate(joiningDate);
+            const endTime = this.formatDate(endDate);
 
             console.log(`Validity Period: ${beginTime} to ${endTime}`);
+
 
             // Create JSON payload (matching Strapi format)
             const payload = {
@@ -83,7 +112,7 @@ class HikvisionService {
                     userType: 'normal',
                     departmentNo: '1',
                     Valid: {
-                        enable: true,
+                        enable: true,  // Always true for active members (expired ones are deleted)
                         beginTime: beginTime,
                         endTime: endTime,
                         timeType: 'local'
@@ -100,10 +129,10 @@ class HikvisionService {
 
             console.log(`\n📤 Sending JSON to device:`);
             console.log(JSON.stringify(payload, null, 2));
-            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`);
+            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Modify?format=json`);
 
-            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Record?format=json`, {
-                method: 'POST',
+            const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Modify?format=json`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
@@ -113,8 +142,13 @@ class HikvisionService {
             console.log(`📥 Response Body:`, responseText);
 
             if (response.status === 200) {
-                console.log(`✅ Member ${member.id} (${member.name}) synced successfully!`);
-                logger.info(`Member ${member.id} synced to device`, { name: member.name, endTime });
+                const accessStatus = hasAccess ? '✅ ENABLED' : '🚫 DISABLED';
+                console.log(`${accessStatus} Member ${member.id} (${member.name}) synced successfully!`);
+                logger.info(`Member ${member.id} synced to device`, {
+                    name: member.name,
+                    endTime,
+                    accessEnabled: hasAccess
+                });
             } else {
                 console.log(`⚠️ Unexpected status code: ${response.status}`);
             }
@@ -269,6 +303,21 @@ class HikvisionService {
         }
 
         return true;
+    }
+
+    /**
+     * Format date for Hikvision (YYYY-MM-DDTHH:mm:ss)
+     */
+    private formatDate(dateString: string): string {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
     }
 }
 
