@@ -35,7 +35,7 @@ export async function handleAttendanceEvent(req: Request, res: Response): Promis
             memberId: parseInt(employeeNo, 10),
             gymId: config.gym.id,
             date,
-            checkIn: timeStr,
+            checkin: timeStr,
         };
 
         // Try to send to Strapi
@@ -90,7 +90,7 @@ export async function pullAttendanceLogs(req: Request, res: Response): Promise<v
                     memberId: parseInt(log.employeeNo, 10),
                     gymId: config.gym.id,
                     date,
-                    checkIn: timeStr,
+                    checkin: timeStr,
                 };
 
                 try {

@@ -21,8 +21,8 @@ interface AttendanceData {
     memberId: number;
     gymId: number;
     date: string;
-    checkIn: string;
-    checkOut?: string;
+    checkin: string;
+    checkout?: string;
 }
 
 class StrapiService {
@@ -155,7 +155,7 @@ class StrapiService {
                 // Update checkout time
                 await this.client.put(`/api/attendances/${existing.id}`, {
                     data: {
-                        checkOut: data.checkOut || data.checkIn,
+                        checkout: data.checkout || data.checkin,
                     },
                 });
                 logger.info(`Updated attendance for member ${data.memberId}`, { date: data.date });
@@ -166,8 +166,9 @@ class StrapiService {
                         member: data.memberId,
                         gym: data.gymId,
                         date: data.date,
-                        checkIn: data.checkIn,
-                        checkOut: data.checkOut,
+                        checkin: data.checkin,
+                        checkout: data.checkout,
+                        status: 'present',
                     },
                 });
                 logger.info(`Created attendance for member ${data.memberId}`, { date: data.date });

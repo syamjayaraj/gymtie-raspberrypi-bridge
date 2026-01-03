@@ -37,7 +37,7 @@ async function pullAttendance(): Promise<void> {
                     memberId: parseInt(log.employeeNo, 10),
                     gymId: config.gym.id,
                     date,
-                    checkIn: timeStr,
+                    checkin: timeStr,
                 };
 
                 try {
