@@ -193,21 +193,24 @@ class HikvisionService {
             console.log('[HIKVISION] Getting attendance logs...');
             console.log(`[HIKVISION] Time range: ${startTime.toISOString()} to ${endTime.toISOString()}`);
 
-            const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<AcsEventCond>
-  <searchID>1</searchID>
-  <searchResultPosition>0</searchResultPosition>
-  <maxResults>100</maxResults>
-  <major>5</major>
-  <minor>0</minor>
-  <startTime>${startTime.toISOString()}</startTime>
-  <endTime>${endTime.toISOString()}</endTime>
-</AcsEventCond>`;
+            const payload = {
+                AcsEventCond: {
+                    searchID: '1',
+                    searchResultPosition: 0,
+                    maxResults: 100,
+                    major: 0,
+                    minor: 0,
+                    startTime: startTime.toISOString(),
+                    endTime: endTime.toISOString(),
+                }
+            };
+
+            console.log('[HIKVISION] Payload:', JSON.stringify(payload, null, 2));
 
             const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/AcsEvent?format=json`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/xml' },
-                body: xml,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
             });
 
             console.log(`[HIKVISION] Response status: ${response.status}`);
