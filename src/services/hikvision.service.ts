@@ -46,29 +46,29 @@ class HikvisionService {
      */
     async syncMember(member: MemberData): Promise<void> {
         try {
-            // console.log(`\n========== SYNCING MEMBER ${member.id} ==========`);
-            // console.log(`Member Name: ${member.name}`);
-            // console.log(`Member Data:`, JSON.stringify(member, null, 2));
+            console.log(`\n========== SYNCING MEMBER ${member.id} ==========`);
+            console.log(`Member Name: ${member.name}`);
+            console.log(`Member Data:`, JSON.stringify(member, null, 2));
 
             // Check if member should have access
             const hasAccess = this.shouldMemberBeOnDevice(member);
-            // console.log(`Has access: ${hasAccess}`);
+            console.log(`Has access: ${hasAccess}`);
 
             // If member doesn't have access, delete them from device
             if (!hasAccess) {
-                // console.log(`❌ Member ${member.id} expired/blocked - deleting from device...`);
+                console.log(`❌ Member ${member.id} expired/blocked - deleting from device...`);
                 try {
                     await this.deleteMember(member.id.toString());
-                    // console.log(`✅ Member ${member.id} (${member.name}) deleted successfully`);
+                    console.log(`✅ Member ${member.id} (${member.name}) deleted successfully`);
                     logger.info(`Member ${member.id} deleted from device (expired/blocked/inactive)`);
                 } catch (error: any) {
                     if (error.response?.status === 404) {
-                        // console.log(`ℹ️ Member ${member.id} not on device`);
+                        console.log(`ℹ️ Member ${member.id} not on device`);
                     } else {
                         console.error(`❌ Failed to delete member ${member.id}:`, error.message);
                     }
                 }
-                // console.log(`========== END SYNC ${member.id} ==========\n`);
+                console.log(`========== END SYNC ${member.id} ==========\n`);
                 return;
             }
             // Calculate validity dates (matching Strapi logic exactly)
@@ -97,7 +97,7 @@ class HikvisionService {
             const beginTime = this.formatDate(joiningDate);
             const endTime = this.formatDate(endDate);
 
-            // console.log(`Validity Period: ${beginTime} to ${endTime}`);
+            console.log(`Validity Period: ${beginTime} to ${endTime}`);
 
 
             // Create JSON payload (matching Strapi format)
@@ -123,9 +123,9 @@ class HikvisionService {
                 }
             };
 
-            // console.log(`\n📤 Sending JSON to device:`);
-            // console.log(JSON.stringify(payload, null, 2));
-            // console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Modify?format=json`);
+            console.log(`\n📤 Sending JSON to device:`);
+            console.log(JSON.stringify(payload, null, 2));
+            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Modify?format=json`);
 
             const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Modify?format=json`, {
                 method: 'PUT',
@@ -133,23 +133,23 @@ class HikvisionService {
                 body: JSON.stringify(payload),
             });
 
-            // console.log(`\n📥 Response Status: ${response.status} ${response.statusText}`);
-            // const responseText = await response.text();
-            // console.log(`📥 Response Body:`, responseText);
+            console.log(`\n📥 Response Status: ${response.status} ${response.statusText}`);
+            const responseText = await response.text();
+            console.log(`📥 Response Body:`, responseText);
 
             if (response.status === 200) {
-                // const accessStatus = hasAccess ? '✅ ENABLED' : '🚫 DISABLED';
-                // console.log(`${accessStatus} Member ${member.id} (${member.name}) synced successfully!`);
+                const accessStatus = hasAccess ? '✅ ENABLED' : '🚫 DISABLED';
+                console.log(`${accessStatus} Member ${member.id} (${member.name}) synced successfully!`);
                 logger.info(`Member ${member.id} synced to device`, {
                     name: member.name,
                     endTime,
                     accessEnabled: hasAccess
                 });
             } else {
-                // console.log(`⚠️ Unexpected status code: ${response.status}`);
+                console.log(`⚠️ Unexpected status code: ${response.status}`);
             }
 
-            // console.log(`========== END SYNC ${member.id} ==========\n`);
+            console.log(`========== END SYNC ${member.id} ==========\n`);
         } catch (error: any) {
             console.error(`\n❌ ERROR syncing member ${member.id}:`);
             console.error(`Error message: ${error.message}`);
