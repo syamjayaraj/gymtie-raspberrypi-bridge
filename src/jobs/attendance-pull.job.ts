@@ -10,13 +10,18 @@ import config from '../utils/config';
  */
 async function pullAttendance(): Promise<void> {
     try {
+        console.log('[ATTENDANCE] Starting attendance pull job...');
         logger.info('[CRON] Starting attendance pull job...');
 
         // Get logs from last 10 minutes
         const endTime = new Date();
         const startTime = new Date(endTime.getTime() - 10 * 60 * 1000);
 
+        console.log(`[ATTENDANCE] Pulling logs from ${startTime.toISOString()} to ${endTime.toISOString()}`);
+
         const logs = await hikvisionService.getAttendanceLogs(startTime, endTime);
+
+        console.log(`[ATTENDANCE] Retrieved ${logs.length} logs from device`);
 
         let successful = 0;
         let queued = 0;

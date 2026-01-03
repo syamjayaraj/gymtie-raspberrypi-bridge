@@ -1,10 +1,6 @@
-import { parseString } from 'xml2js';
-import { promisify } from 'util';
 import DigestClient from 'digest-fetch';
 import config from '../utils/config';
 import logger from '../utils/logger';
-
-const parseXML = promisify(parseString);
 
 interface MemberData {
     id: number;
@@ -50,29 +46,29 @@ class HikvisionService {
      */
     async syncMember(member: MemberData): Promise<void> {
         try {
-            console.log(`\n========== SYNCING MEMBER ${member.id} ==========`);
-            console.log(`Member Name: ${member.name}`);
-            console.log(`Member Data:`, JSON.stringify(member, null, 2));
+            // console.log(`\n========== SYNCING MEMBER ${member.id} ==========`);
+            // console.log(`Member Name: ${member.name}`);
+            // console.log(`Member Data:`, JSON.stringify(member, null, 2));
 
             // Check if member should have access
             const hasAccess = this.shouldMemberBeOnDevice(member);
-            console.log(`Has access: ${hasAccess}`);
+            // console.log(`Has access: ${hasAccess}`);
 
             // If member doesn't have access, delete them from device
             if (!hasAccess) {
-                console.log(`❌ Member ${member.id} expired/blocked - deleting from device...`);
+                // console.log(`❌ Member ${member.id} expired/blocked - deleting from device...`);
                 try {
                     await this.deleteMember(member.id.toString());
-                    console.log(`✅ Member ${member.id} (${member.name}) deleted successfully`);
+                    // console.log(`✅ Member ${member.id} (${member.name}) deleted successfully`);
                     logger.info(`Member ${member.id} deleted from device (expired/blocked/inactive)`);
                 } catch (error: any) {
                     if (error.response?.status === 404) {
-                        console.log(`ℹ️ Member ${member.id} not on device`);
+                        // console.log(`ℹ️ Member ${member.id} not on device`);
                     } else {
                         console.error(`❌ Failed to delete member ${member.id}:`, error.message);
                     }
                 }
-                console.log(`========== END SYNC ${member.id} ==========\n`);
+                // console.log(`========== END SYNC ${member.id} ==========\n`);
                 return;
             }
             // Calculate validity dates (matching Strapi logic exactly)
@@ -101,7 +97,7 @@ class HikvisionService {
             const beginTime = this.formatDate(joiningDate);
             const endTime = this.formatDate(endDate);
 
-            console.log(`Validity Period: ${beginTime} to ${endTime}`);
+            // console.log(`Validity Period: ${beginTime} to ${endTime}`);
 
 
             // Create JSON payload (matching Strapi format)
@@ -127,9 +123,9 @@ class HikvisionService {
                 }
             };
 
-            console.log(`\n📤 Sending JSON to device:`);
-            console.log(JSON.stringify(payload, null, 2));
-            console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Modify?format=json`);
+            // console.log(`\n📤 Sending JSON to device:`);
+            // console.log(JSON.stringify(payload, null, 2));
+            // console.log(`\n🌐 Request URL: ${this.baseUrl}/ISAPI/AccessControl/UserInfo/Modify?format=json`);
 
             const response = await this.client.fetch(`${this.baseUrl}/ISAPI/AccessControl/UserInfo/Modify?format=json`, {
                 method: 'PUT',
@@ -137,23 +133,23 @@ class HikvisionService {
                 body: JSON.stringify(payload),
             });
 
-            console.log(`\n📥 Response Status: ${response.status} ${response.statusText}`);
-            const responseText = await response.text();
-            console.log(`📥 Response Body:`, responseText);
+            // console.log(`\n📥 Response Status: ${response.status} ${response.statusText}`);
+            // const responseText = await response.text();
+            // console.log(`📥 Response Body:`, responseText);
 
             if (response.status === 200) {
-                const accessStatus = hasAccess ? '✅ ENABLED' : '🚫 DISABLED';
-                console.log(`${accessStatus} Member ${member.id} (${member.name}) synced successfully!`);
+                // const accessStatus = hasAccess ? '✅ ENABLED' : '🚫 DISABLED';
+                // console.log(`${accessStatus} Member ${member.id} (${member.name}) synced successfully!`);
                 logger.info(`Member ${member.id} synced to device`, {
                     name: member.name,
                     endTime,
                     accessEnabled: hasAccess
                 });
             } else {
-                console.log(`⚠️ Unexpected status code: ${response.status}`);
+                // console.log(`⚠️ Unexpected status code: ${response.status}`);
             }
 
-            console.log(`========== END SYNC ${member.id} ==========\n`);
+            // console.log(`========== END SYNC ${member.id} ==========\n`);
         } catch (error: any) {
             console.error(`\n❌ ERROR syncing member ${member.id}:`);
             console.error(`Error message: ${error.message}`);
@@ -194,6 +190,9 @@ class HikvisionService {
      */
     async getAttendanceLogs(startTime: Date, endTime: Date): Promise<AttendanceLog[]> {
         try {
+            console.log('[HIKVISION] Getting attendance logs...');
+            console.log(`[HIKVISION] Time range: ${startTime.toISOString()} to ${endTime.toISOString()}`);
+
             const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <AcsEventCond>
   <searchID>1</searchID>
@@ -211,22 +210,30 @@ class HikvisionService {
                 body: xml,
             });
 
-            // Parse XML response
+            console.log(`[HIKVISION] Response status: ${response.status}`);
+
+            // Parse JSON response (not XML because of ?format=json)
             const responseText = await response.text();
-            const result: any = await parseXML(responseText);
-            const events = result?.AcsEvent?.InfoList?.[0]?.Info || [];
+            console.log(`[HIKVISION] Response body:`, responseText.substring(0, 500));
+
+            const result: any = JSON.parse(responseText);
+            const events = result?.AcsEvent?.InfoList || [];
+
+            console.log(`[HIKVISION] Found ${events.length} events`);
 
             const logs: AttendanceLog[] = events.map((event: any) => ({
-                employeeNo: event.employeeNo?.[0] || '',
-                time: event.time?.[0] || '',
-                doorNo: parseInt(event.doorNo?.[0] || '1', 10),
+                employeeNo: event.employeeNoString || event.employeeNo || '',
+                time: event.time || '',
+                doorNo: parseInt(event.doorNo || '1', 10),
             }));
 
+            console.log(`[HIKVISION] Parsed ${logs.length} attendance logs`);
             logger.info(`Retrieved ${logs.length} attendance logs from device`);
             return logs;
         } catch (error: any) {
+            console.error('[HIKVISION] Failed to get attendance logs:', error.message);
             logger.error('Failed to get attendance logs', { error: error.message });
-            throw error;
+            return []; // Return empty array instead of throwing
         }
     }
 
