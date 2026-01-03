@@ -21,7 +21,8 @@ class HikvisionService {
     private client: DigestClient;
 
     constructor() {
-        this.baseUrl = `http://${config.hikvision.ip}:${config.hikvision.port}`;
+        const protocol = config.hikvision.port === 443 ? 'https' : 'http';
+        this.baseUrl = `${protocol}://${config.hikvision.ip}:${config.hikvision.port}`;
         this.client = new DigestClient(config.hikvision.username, config.hikvision.password, {
             algorithm: 'MD5',
         });
