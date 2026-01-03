@@ -25,6 +25,16 @@ class HikvisionService {
         this.baseUrl = `${protocol}://${config.hikvision.ip}:${config.hikvision.port}`;
         this.client = new DigestClient(config.hikvision.username, config.hikvision.password, {
             algorithm: 'MD5',
+            // Disable SSL verification for self-signed certificates
+            ...(protocol === 'https' && {
+                fetch: (url: string, options: any) => {
+                    return fetch(url, {
+                        ...options,
+                        // @ts-ignore - Node.js specific option
+                        agent: new (require('https').Agent)({ rejectUnauthorized: false })
+                    });
+                }
+            })
         });
     }
 
